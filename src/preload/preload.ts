@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+// Backend API response types
+interface BackendResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  status?: number;
+  error?: string;
+}
+
 // API exposed to renderer process
 const api = {
   backend: {
@@ -7,7 +15,7 @@ const api = {
     getUrl: (): Promise<string> => ipcRenderer.invoke('backend:getUrl'),
 
     // Make API call to Python backend
-    call: (endpoint: string, options?: RequestInit): Promise<any> =>
+    call: (endpoint: string, options?: RequestInit): Promise<BackendResponse> =>
       ipcRenderer.invoke('backend:call', endpoint, options),
 
     // Convenience methods for common operations

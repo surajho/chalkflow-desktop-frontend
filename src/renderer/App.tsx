@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 
 interface ScrapeStatus {
@@ -18,7 +18,7 @@ const App: React.FC = () => {
   const [scrapeStatus, setScrapeStatus] = useState<ScrapeStatus | null>(null);
   const [message, setMessage] = useState('');
 
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     try {
       const result = await window.electronAPI.backend.getAuthStatus();
       if (result.success) {
@@ -30,12 +30,13 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Error checking auth status:', error);
     }
-  };
+  }, []);
 
   // Check authentication status on mount
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     checkAuthStatus();
-  }, []);
+  }, [checkAuthStatus]);
 
   // Poll scrape status when scraping
   useEffect(() => {
