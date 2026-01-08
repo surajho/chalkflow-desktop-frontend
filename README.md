@@ -24,13 +24,13 @@ Electron desktop application for extracting and managing BTWB workout data.
 yarn install
 ```
 
-2. Build TypeScript:
+1. Build TypeScript:
 
 ```bash
 yarn build
 ```
 
-3. Run in development mode:
+1. Run in development mode:
 
 ```bash
 yarn dev
@@ -38,7 +38,7 @@ yarn dev
 
 ### Project Structure
 
-```
+```text
 desktop-frontend/
 ├── src/
 │   ├── main/           # Main process (Electron)
