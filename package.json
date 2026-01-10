@@ -6,8 +6,10 @@
   "author": "Chalkflow",
   "license": "MIT",
   "scripts": {
-    "build": "tsc && yarn copy-assets",
-    "copy-assets": "cp src/renderer/index.html dist/renderer/ && cp src/renderer/App.css dist/renderer/",
+    "build": "yarn build:main && yarn build:renderer && yarn copy-assets",
+    "build:main": "tsc --project tsconfig.json",
+    "build:renderer": "node node_modules/esbuild/bin/esbuild src/renderer/index.tsx --bundle --outfile=dist/renderer/index.js --platform=browser --target=es2020",
+    "copy-assets": "cp src/renderer/index.html dist/renderer/ && cp src/renderer/App.css dist/renderer/ && cp src/renderer/ExportPreview.css dist/renderer/",
     "watch": "tsc --watch",
     "start": "npm run build && electron .",
     "dev": "yarn build && electron . --dev",

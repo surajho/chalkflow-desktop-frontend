@@ -40,7 +40,9 @@ const App: React.FC = () => {
   const [memberId, setMemberId] = useState('');
   const [scrapeStatus, setScrapeStatus] = useState<ScrapeStatus | null>(null);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const checkAuthStatus = useCallback(async () => {
     try {
@@ -59,7 +61,6 @@ const App: React.FC = () => {
 
   // Check authentication status on mount
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     checkAuthStatus();
   }, [checkAuthStatus]);
 
@@ -101,7 +102,9 @@ const App: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage('Logging in...');
+    setMessage('Logging in to BTWB...');
+    setMessageType('info');
+    setIsLoggingIn(true);
 
     try {
       const result = await window.electronAPI.backend.login(email, password);
@@ -110,42 +113,69 @@ const App: React.FC = () => {
         if (loginData.success) {
           setIsAuthenticated(true);
           setMemberId(loginData.member_id || '');
-          setMessage('Login successful!');
+          setMessage('Login successful! You can now extract your workouts.');
+          setMessageType('success');
           setPassword('');
         } else {
-          setMessage(loginData.message || 'Login failed');
+          setMessage(loginData.message || 'Login failed. Please check your credentials.');
+          setMessageType('error');
         }
       } else {
-        setMessage(result.error || 'Login failed');
+        setMessage(result.error || 'Login failed. Please try again.');
+        setMessageType('error');
       }
     } catch (error) {
-      setMessage('Error during login');
+      setMessage('Connection error. Please check your internet connection.');
+      setMessageType('error');
       console.error(error);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setEmail('');
+    setPassword('');
+    setMemberId('');
+    setScrapeStatus(null);
+    setWorkouts([]);
+    setMessage('');
+  };
+
   const handleStartScrape = async () => {
-    setMessage('Starting scrape...');
+    if (!memberId) {
+      setMessage('Please provide a member ID');
+      setMessageType('error');
+      return;
+    }
+
+    setMessage('Starting workout extraction...');
+    setMessageType('info');
 
     try {
       const result = await window.electronAPI.backend.startScrape(memberId);
       if (result.success && result.data) {
         const scrapeData = result.data as ScrapeResponseData;
         if (scrapeData.success) {
-          setMessage('Scraping started!');
+          setMessage('Extracting workouts from BTWB...');
+          setMessageType('info');
           // Fetch initial status
           const statusResult = await window.electronAPI.backend.getScrapeStatus();
           if (statusResult.success && statusResult.data) {
             setScrapeStatus(statusResult.data as ScrapeStatus);
           }
         } else {
-          setMessage(scrapeData.message || 'Failed to start scrape');
+          setMessage(scrapeData.message || 'Failed to start extraction');
+          setMessageType('error');
         }
       } else {
-        setMessage(result.error || 'Failed to start scrape');
+        setMessage(result.error || 'Failed to start extraction');
+        setMessageType('error');
       }
     } catch (error) {
-      setMessage('Error starting scrape');
+      setMessage('Error starting extraction. Please try again.');
+      setMessageType('error');
       console.error(error);
     }
   };
@@ -179,11 +209,18 @@ const App: React.FC = () => {
       </header>
 
       <main className="app-main">
-        {message && <div className="message">{message}</div>}
+        {message && (
+          <div className={`message message-${messageType}`} role="alert">
+            {message}
+          </div>
+        )}
 
         {!isAuthenticated ? (
           <section className="login-section">
             <h2>Login to BTWB</h2>
+            <p className="section-description">
+              Enter your Beyond the Whiteboard credentials to extract your workout history.
+            </p>
             <form onSubmit={handleLogin}>
               <div className="form-group">
                 <label htmlFor="email">Email:</label>
@@ -192,7 +229,10 @@ const App: React.FC = () => {
                   id="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
                   required
+                  disabled={isLoggingIn}
+                  autoComplete="email"
                 />
               </div>
               <div className="form-group">
@@ -202,17 +242,25 @@ const App: React.FC = () => {
                   id="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
                   required
+                  disabled={isLoggingIn}
+                  autoComplete="current-password"
                 />
               </div>
-              <button type="submit" className="btn btn-primary">
-                Login
+              <button type="submit" className="btn btn-primary" disabled={isLoggingIn}>
+                {isLoggingIn ? 'Logging in...' : 'Login'}
               </button>
             </form>
           </section>
         ) : (
           <section className="scrape-section">
-            <h2>Extract Workouts</h2>
+            <div className="section-header">
+              <h2>Extract Workouts</h2>
+              <button onClick={handleLogout} className="btn btn-logout">
+                Logout
+              </button>
+            </div>
 
             <div className="form-group">
               <label htmlFor="memberId">Member ID:</label>
@@ -222,30 +270,44 @@ const App: React.FC = () => {
                 value={memberId}
                 onChange={(e) => setMemberId(e.target.value)}
                 placeholder="Enter BTWB member ID"
+                disabled={scrapeStatus?.is_scraping}
               />
+              <small className="form-hint">Your member ID from your BTWB profile</small>
             </div>
 
             <button
               onClick={handleStartScrape}
               className="btn btn-primary"
-              disabled={scrapeStatus?.is_scraping}
+              disabled={scrapeStatus?.is_scraping || !memberId}
             >
-              {scrapeStatus?.is_scraping ? 'Scraping...' : 'Start Scrape'}
+              {scrapeStatus?.is_scraping ? 'Extracting...' : 'Start Extraction'}
             </button>
 
-            {scrapeStatus && (
+            {scrapeStatus && scrapeStatus.total > 0 && (
               <div className="scrape-status">
-                <h3>Scrape Progress</h3>
+                <h3>Extraction Progress</h3>
                 <div className="progress-bar">
                   <div
                     className="progress-fill"
                     style={{
-                      width: `${(scrapeStatus.progress / scrapeStatus.total) * 100}%`,
+                      width: `${Math.min((scrapeStatus.progress / scrapeStatus.total) * 100, 100)}%`,
                     }}
                   />
                 </div>
+                <p className="progress-text">
+                  {scrapeStatus.progress} / {scrapeStatus.total} workouts
+                  <span className="progress-percentage">
+                    ({Math.round((scrapeStatus.progress / scrapeStatus.total) * 100)}%)
+                  </span>
+                </p>
+                <p className="status-text">{scrapeStatus.status}</p>
+              </div>
+            )}
+
+            {scrapeStatus?.error && (
+              <div className="error-box">
                 <p>
-                  {scrapeStatus.progress} / {scrapeStatus.total} workouts ({scrapeStatus.status})
+                  <strong>Error:</strong> {scrapeStatus.error}
                 </p>
               </div>
             )}
