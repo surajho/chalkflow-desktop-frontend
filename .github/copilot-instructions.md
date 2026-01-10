@@ -18,6 +18,56 @@ This is a TypeScript-based Electron application for Chalkflow.
 - We're working through Test Driven Development
 - **Use Yarn** as the package manager (not npm) for all commands
 
+## TypeScript Strict Typing
+
+**Always use explicit, specific types. Avoid vague types.**
+
+### Forbidden Types (unless absolutely necessary)
+
+- ❌ `any` - Never use. This defeats the purpose of TypeScript
+- ❌ `unknown` - Avoid. Use specific types or union types instead
+- ❌ `object` - Too vague. Define the actual shape with an interface
+- ❌ `Function` - Use specific function signatures: `(param: string) => void`
+
+### Required Practices
+
+- ✅ Define interfaces for all data structures
+- ✅ Use union types for variables that can be multiple specific types
+- ✅ Type all function parameters and return values explicitly
+- ✅ Use generics when creating reusable components/functions
+- ✅ Prefer `interface` over `type` for object shapes
+- ✅ Use `Record<string, SpecificType>` instead of `Record<string, any>`
+- ✅ Type React component props with explicit interfaces
+- ✅ Use proper types for API responses, not just `data: any`
+
+### Examples
+
+```typescript
+// ❌ Bad
+const data: any = await fetch();
+function process(item: any): any {}
+
+// ✅ Good
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+}
+const data: UserData = await fetch();
+function process(item: UserData): ProcessedResult {}
+
+// ❌ Bad
+const config: Record<string, any> = {};
+
+// ✅ Good
+interface Config {
+  apiUrl: string;
+  timeout: number;
+  retries: number;
+}
+const config: Config = {};
+```
+
 ## Build Verification
 
 After making changes and running tests successfully, **always run `yarn build`** to verify
