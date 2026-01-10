@@ -37,6 +37,15 @@ const api = {
 
     getScrapeStatus: () => ipcRenderer.invoke('backend:call', '/scrape/status', { method: 'GET' }),
 
+    getWorkouts: (startDate?: string, endDate?: string) => {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+      const query = params.toString();
+      const endpoint = query ? `/workouts?${query}` : '/workouts';
+      return ipcRenderer.invoke('backend:call', endpoint, { method: 'GET' });
+    },
+
     generateExports: (formats: string[], startDate?: string, endDate?: string) =>
       ipcRenderer.invoke('backend:call', '/export/generate', {
         method: 'POST',

@@ -23,6 +23,7 @@ declare global {
           endDate?: string
         ) => Promise<BackendResponse>;
         getScrapeStatus: () => Promise<BackendResponse>;
+        getWorkouts: (startDate?: string, endDate?: string) => Promise<BackendResponse>;
         generateExports: (
           formats: string[],
           startDate?: string,

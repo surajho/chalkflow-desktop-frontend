@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
+import ExportPreview from './ExportPreview';
+import { WorkoutSession } from '../types/workout';
 
 interface ScrapeStatus {
   is_scraping: boolean;
@@ -38,6 +40,7 @@ const App: React.FC = () => {
   const [memberId, setMemberId] = useState('');
   const [scrapeStatus, setScrapeStatus] = useState<ScrapeStatus | null>(null);
   const [message, setMessage] = useState('');
+  const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
 
   const checkAuthStatus = useCallback(async () => {
     try {
@@ -60,6 +63,18 @@ const App: React.FC = () => {
     checkAuthStatus();
   }, [checkAuthStatus]);
 
+  const fetchWorkouts = useCallback(async () => {
+    try {
+      const result = await window.electronAPI.backend.getWorkouts();
+      if (result.success && result.data) {
+        const data = result.data as { workouts: WorkoutSession[]; total: number };
+        setWorkouts(data.workouts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching workouts:', error);
+    }
+  }, []);
+
   // Poll scrape status when scraping
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -68,7 +83,13 @@ const App: React.FC = () => {
       interval = setInterval(async () => {
         const result = await window.electronAPI.backend.getScrapeStatus();
         if (result.success && result.data) {
-          setScrapeStatus(result.data as ScrapeStatus);
+          const status = result.data as ScrapeStatus;
+          setScrapeStatus(status);
+
+          // If scraping just completed, fetch workouts
+          if (status.status === 'completed' && scrapeStatus.status !== 'completed') {
+            await fetchWorkouts();
+          }
         }
       }, 1000);
     }
@@ -76,7 +97,7 @@ const App: React.FC = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [scrapeStatus?.is_scraping]);
+  }, [scrapeStatus?.is_scraping, scrapeStatus?.status, fetchWorkouts]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,23 +251,27 @@ const App: React.FC = () => {
             )}
 
             {scrapeStatus?.status === 'completed' && (
-              <div className="export-section">
-                <h3>Export Options</h3>
-                <div className="export-buttons">
-                  <button onClick={() => handleExport(['json'])} className="btn btn-secondary">
-                    Export JSON
-                  </button>
-                  <button onClick={() => handleExport(['csv'])} className="btn btn-secondary">
-                    Export CSV
-                  </button>
-                  <button
-                    onClick={() => handleExport(['json', 'csv'])}
-                    className="btn btn-secondary"
-                  >
-                    Export Both
-                  </button>
+              <>
+                <ExportPreview workouts={workouts} />
+
+                <div className="export-section">
+                  <h3>Export Options</h3>
+                  <div className="export-buttons">
+                    <button onClick={() => handleExport(['json'])} className="btn btn-secondary">
+                      Export JSON
+                    </button>
+                    <button onClick={() => handleExport(['csv'])} className="btn btn-secondary">
+                      Export CSV
+                    </button>
+                    <button
+                      onClick={() => handleExport(['json', 'csv'])}
+                      className="btn btn-secondary"
+                    >
+                      Export Both
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </section>
         )}
